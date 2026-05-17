@@ -1,0 +1,14 @@
+{
+    "healthCheckPort": 442,
+    "sslCheckPorts": [
+        443,
+        442
+    ],
+    "testing": [
+        "test1.example.com"
+    ],
+    "production": [
+        "app1.example.com",
+        "app2.example.com"
+    ]
+}

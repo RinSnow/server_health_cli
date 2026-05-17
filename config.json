@@ -1,0 +1,8 @@
+{
+    "healthCheckPort": 442,
+    "sslCheckPorts": [
+        443
+    ],
+    "testing": [],
+    "production": []
+}
