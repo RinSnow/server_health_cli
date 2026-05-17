@@ -270,6 +270,7 @@ type model struct {
 	Servers map[string]*ServerState
 	Width   int
 	Height  int
+	Scroll  int
 }
 
 // --- Messages ---
@@ -348,8 +349,26 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.String() == "q" || msg.String() == "ctrl+c" {
+		switch msg.String() {
+		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "up", "k":
+			if m.Scroll > 0 {
+				m.Scroll--
+			}
+		case "down", "j":
+			m.Scroll++
+		case "pgup", "b":
+			if m.Height > 0 {
+				m.Scroll -= m.Height / 2
+				if m.Scroll < 0 {
+					m.Scroll = 0
+				}
+			}
+		case "pgdown", "f":
+			if m.Height > 0 {
+				m.Scroll += m.Height / 2
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -487,8 +506,13 @@ func checkSSLCmd(host string, port int) tea.Cmd {
 
 func checkDiskSpaceCmd(host string) tea.Cmd {
 	return func() tea.Msg {
-		// Run ssh <host> "df -h"
-		cmd := exec.Command("ssh", host, "df -h")
+		cmd := exec.Command(
+			"ssh",
+			"-o", "BatchMode=yes",
+			"-o", "StrictHostKeyChecking=accept-new",
+			host,
+			"df -h",
+		)
 		output, err := cmd.Output()
 		if err != nil {
 			return diskCheckMsg{Name: host, Err: err}
@@ -688,7 +712,36 @@ func (m model) View() string {
 		renderList("Production", prodServers),
 	)
 
-	return lipgloss.JoinVertical(lipgloss.Left, header, summary, lists, styleLabel.Render("\nPress q to quit"))
+	fullView := lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		summary,
+		lists,
+		styleLabel.Render("\nPress q to quit | Up/Down or j/k to scroll"),
+	)
+
+	return renderScrollable(fullView, m.Height, m.Scroll)
+}
+
+func renderScrollable(content string, height int, scroll int) string {
+	if height <= 0 {
+		return content
+	}
+
+	lines := strings.Split(content, "\n")
+	if len(lines) <= height {
+		return content
+	}
+
+	maxScroll := len(lines) - height
+	if scroll < 0 {
+		scroll = 0
+	}
+	if scroll > maxScroll {
+		scroll = maxScroll
+	}
+
+	return strings.Join(lines[scroll:scroll+height], "\n")
 }
 
 func main() {
